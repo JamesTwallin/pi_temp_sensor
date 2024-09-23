@@ -57,24 +57,6 @@ python3 temp_sensor.py
 The script will create JSON files with temperature readings on the USB stick.
 
 ## Running on Boot
-### Service file
-```
-[Unit]
-Description=Temperature Sensor Logger
-After=multi-user.target
-
-[Service]
-ExecStart=/usr/bin/python3 /home/pi/temp_sensor.py
-WorkingDirectory=/home/pi
-StandardOutput=inherit
-StandardError=inherit
-Restart=always
-User=pi
-
-[Install]
-WantedBy=multi-user.target
-```
-
 
 To run the script automatically on boot:
 
