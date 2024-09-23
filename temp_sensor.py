@@ -3,6 +3,7 @@ import glob
 import time
 import csv
 from datetime import datetime, timezone
+from io import StringIO
 
 # Initialize the 1-Wire interface
 os.system('modprobe w1-gpio')
@@ -14,17 +15,17 @@ base_dir = '/sys/bus/w1/devices/'
 # USB stick mount point - update this to match your setup
 USB_MOUNT_POINT = '/media/pi/USB_STICK'
 
+# Buffer size and write interval
+BUFFER_SIZE = 60  # Number of readings to buffer before writing
+WRITE_INTERVAL = 60  # Seconds between writes
+
 def find_device():
-    # Find the device folder that starts with '28-'
     device_folders = glob.glob(base_dir + '28*')
-    if device_folders:
-        return device_folders[0] + '/w1_slave'
-    return None
+    return device_folders[0] + '/w1_slave' if device_folders else None
 
 def read_temp_raw(device_file):
     with open(device_file, 'r') as f:
-        lines = f.readlines()
-    return lines
+        return f.readlines()
 
 def read_temp(device_file):
     lines = read_temp_raw(device_file)
@@ -34,18 +35,17 @@ def read_temp(device_file):
     equals_pos = lines[1].find('t=')
     if equals_pos != -1:
         temp_string = lines[1][equals_pos+2:]
-        temp_c = float(temp_string) / 1000.0
-        return temp_c
+        return float(temp_string) / 1000.0
     return None
 
 def get_zulu_timestamp():
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 def create_csv(start_time):
     day_folder = os.path.join(USB_MOUNT_POINT, start_time[:10])  # YYYY-MM-DD
     os.makedirs(day_folder, exist_ok=True)
     
-    csv_filename = f"{start_time}.csv"
+    csv_filename = f"{start_time.replace(':', '')}.csv"
     csv_path = os.path.join(day_folder, csv_filename)
     
     with open(csv_path, 'w', newline='') as csvfile:
@@ -54,10 +54,11 @@ def create_csv(start_time):
     
     return csv_path
 
-def write_to_csv(csv_path, data):
+def write_buffer_to_csv(csv_path, buffer):
     with open(csv_path, 'a', newline='') as csvfile:
-        csv_writer = csv.writer(csvfile)
-        csv_writer.writerow([data["timestamp"], f"{data['temperature_celsius']:.1f}"])
+        csvfile.write(buffer.getvalue())
+    buffer.truncate(0)
+    buffer.seek(0)
 
 def main():
     device_file = find_device()
@@ -69,6 +70,11 @@ def main():
     
     start_time = get_zulu_timestamp()
     csv_path = create_csv(start_time)
+    buffer = StringIO()
+    csv_writer = csv.writer(buffer)
+    
+    readings_count = 0
+    last_write_time = time.time()
     
     try:
         while True:
@@ -76,20 +82,25 @@ def main():
             timestamp = get_zulu_timestamp()
             
             if celsius is not None:
-                data = {
-                    "timestamp": timestamp,
-                    "temperature_celsius": round(celsius, 1),
-                }
+                csv_writer.writerow([timestamp, f"{celsius:.1f}"])
                 print(f"{timestamp} - Temperature: {celsius:.1f}°C")
-                write_to_csv(csv_path, data)
+                readings_count += 1
             else:
                 print(f"{timestamp} - Error reading temperature. Retrying...")
+            
+            current_time = time.time()
+            if readings_count >= BUFFER_SIZE or (current_time - last_write_time) >= WRITE_INTERVAL:
+                write_buffer_to_csv(csv_path, buffer)
+                readings_count = 0
+                last_write_time = current_time
             
             time.sleep(1)
     except KeyboardInterrupt:
         print("Script terminated by user.")
+        write_buffer_to_csv(csv_path, buffer)  # Write any remaining data
     except Exception as e:
         print(f"An error occurred: {str(e)}")
+        write_buffer_to_csv(csv_path, buffer)  # Attempt to write data on error
 
 if __name__ == "__main__":
     main()
