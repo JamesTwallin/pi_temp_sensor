@@ -1,8 +1,11 @@
 [Unit]
 Description=Temperature Sensor Logger
 After=multi-user.target
+Wants=systemd-networkd-wait-online.service
+After=systemd-networkd-wait-online.service
 
 [Service]
+Type=simple
 ExecStartPre=/bin/bash -c 'while ! mountpoint -q /media/pi/USB_STICK; do sleep 1; done'
 ExecStart=/usr/bin/python3 /home/pi/pi_temp_sensor/temp_sensor.py
 WorkingDirectory=/home/pi
