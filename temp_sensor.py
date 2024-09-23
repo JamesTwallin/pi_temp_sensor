@@ -35,9 +35,8 @@ def read_temp(device_file):
     if equals_pos != -1:
         temp_string = lines[1][equals_pos+2:]
         temp_c = float(temp_string) / 1000.0
-        temp_f = temp_c * 9.0 / 5.0 + 32.0
-        return temp_c, temp_f
-    return None, None
+        return temp_c
+    return None
 
 def get_zulu_timestamp():
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
@@ -60,16 +59,15 @@ def main():
 
     try:
         while True:
-            celsius, fahrenheit = read_temp(device_file)
+            celsius = read_temp(device_file)
             timestamp = get_zulu_timestamp()
             
-            if celsius is not None and fahrenheit is not None:
+            if celsius is not None:
                 data = {
                     "timestamp": timestamp,
                     "temperature_celsius": round(celsius, 1),
-                    "temperature_fahrenheit": round(fahrenheit, 1)
                 }
-                print(f"{timestamp} - Temperature: {celsius:.1f}°C | {fahrenheit:.1f}°F")
+                print(f"{timestamp} - Temperature: {celsius:.1f}°C")
                 write_to_json(data)
             else:
                 print(f"{timestamp} - Error reading temperature. Retrying...")
