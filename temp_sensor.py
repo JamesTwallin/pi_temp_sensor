@@ -1,7 +1,7 @@
 import os
 import glob
 import time
-import csv
+import json
 from datetime import datetime, timezone
 
 # Initialize the 1-Wire interface
@@ -10,6 +10,9 @@ os.system('modprobe w1-therm')
 
 # Define the directory where the sensor data is stored
 base_dir = '/sys/bus/w1/devices/'
+
+# USB stick mount point - update this to match your setup
+USB_MOUNT_POINT = '/media/pi/USB_STICK'
 
 def find_device():
     # Find the device folder that starts with '28-'
@@ -39,6 +42,14 @@ def read_temp(device_file):
 def get_zulu_timestamp():
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
+def write_to_json(data):
+    timestamp = data['timestamp'].replace(':', '-')  # Replace colons for filename compatibility
+    filename = f"temp_reading_{timestamp}.json"
+    filepath = os.path.join(USB_MOUNT_POINT, filename)
+    
+    with open(filepath, 'w') as json_file:
+        json.dump(data, json_file, indent=4)
+
 def main():
     device_file = find_device()
     if not device_file:
@@ -47,33 +58,27 @@ def main():
 
     print("DS18B20 sensor found. Starting temperature readings...")
 
-    # Create a directory for CSV files if it doesn't exist
-    csv_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'temperature_logs')
-    os.makedirs(csv_dir, exist_ok=True)
-
-    # Create a new CSV file with current timestamp
-    csv_filename = os.path.join(csv_dir, f'temperature_log_{get_zulu_timestamp()}.csv')
-    
-    with open(csv_filename, 'w', newline='') as csvfile:
-        csv_writer = csv.writer(csvfile)
-        csv_writer.writerow(['Timestamp', 'Temperature (°C)', 'Temperature (°F)'])
-
-        try:
-            while True:
-                celsius, fahrenheit = read_temp(device_file)
-                timestamp = get_zulu_timestamp()
-                
-                if celsius is not None and fahrenheit is not None:
-                    print(f"{timestamp} - Temperature: {celsius:.1f}°C | {fahrenheit:.1f}°F")
-                    csv_writer.writerow([timestamp, f"{celsius:.1f}", f"{fahrenheit:.1f}"])
-                    csvfile.flush()  # Ensure data is written to the file immediately
-                else:
-                    print(f"{timestamp} - Error reading temperature. Retrying...")
-                
-                time.sleep(1)
-        except KeyboardInterrupt:
-            print("Script terminated by user.")
-            print(f"Data saved to {csv_filename}")
+    try:
+        while True:
+            celsius, fahrenheit = read_temp(device_file)
+            timestamp = get_zulu_timestamp()
+            
+            if celsius is not None and fahrenheit is not None:
+                data = {
+                    "timestamp": timestamp,
+                    "temperature_celsius": round(celsius, 1),
+                    "temperature_fahrenheit": round(fahrenheit, 1)
+                }
+                print(f"{timestamp} - Temperature: {celsius:.1f}°C | {fahrenheit:.1f}°F")
+                write_to_json(data)
+            else:
+                print(f"{timestamp} - Error reading temperature. Retrying...")
+            
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("Script terminated by user.")
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
 
 if __name__ == "__main__":
     main()
