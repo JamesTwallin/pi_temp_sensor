@@ -1,7 +1,7 @@
 import os
 import glob
 import time
-import json
+import csv
 from datetime import datetime, timezone
 
 # Initialize the 1-Wire interface
@@ -41,13 +41,23 @@ def read_temp(device_file):
 def get_zulu_timestamp():
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
-def write_to_json(data):
-    timestamp = data['timestamp'].replace(':', '-')  # Replace colons for filename compatibility
-    filename = f"temp_reading_{timestamp}.json"
-    filepath = os.path.join(USB_MOUNT_POINT, filename)
+def create_csv(start_time):
+    day_folder = os.path.join(USB_MOUNT_POINT, start_time[:10])  # YYYY-MM-DD
+    os.makedirs(day_folder, exist_ok=True)
     
-    with open(filepath, 'w') as json_file:
-        json.dump(data, json_file, indent=4)
+    csv_filename = f"{start_time}.csv"
+    csv_path = os.path.join(day_folder, csv_filename)
+    
+    with open(csv_path, 'w', newline='') as csvfile:
+        csv_writer = csv.writer(csvfile)
+        csv_writer.writerow(["Timestamp", "Temperature (°C)"])
+    
+    return csv_path
+
+def write_to_csv(csv_path, data):
+    with open(csv_path, 'a', newline='') as csvfile:
+        csv_writer = csv.writer(csvfile)
+        csv_writer.writerow([data["timestamp"], f"{data['temperature_celsius']:.1f}"])
 
 def main():
     device_file = find_device()
@@ -56,7 +66,10 @@ def main():
         return
 
     print("DS18B20 sensor found. Starting temperature readings...")
-
+    
+    start_time = get_zulu_timestamp()
+    csv_path = create_csv(start_time)
+    
     try:
         while True:
             celsius = read_temp(device_file)
@@ -68,7 +81,7 @@ def main():
                     "temperature_celsius": round(celsius, 1),
                 }
                 print(f"{timestamp} - Temperature: {celsius:.1f}°C")
-                write_to_json(data)
+                write_to_csv(csv_path, data)
             else:
                 print(f"{timestamp} - Error reading temperature. Retrying...")
             
