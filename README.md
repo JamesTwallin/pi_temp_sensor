@@ -33,8 +33,8 @@ This project uses a Raspberry Pi with a DS18B20 temperature sensor to log temper
 
 3. Clone this repository:
    ```
-   git clone https://github.com/yourusername/raspberry-pi-temp-sensor.git
-   cd raspberry-pi-temp-sensor
+   git clone https://github.com/JamesTwallin/pi_temp_sensor.git
+   cd pi_temp_sensor
    ```
 
 4. Install the required Python libraries (if not already installed):
@@ -44,7 +44,7 @@ This project uses a Raspberry Pi with a DS18B20 temperature sensor to log temper
 
 5. Plug in your USB stick and note its mount point (e.g., `/media/pi/USB_STICK`)
 
-6. Update the `USB_MOUNT_POINT` variable in the `temp_sensor_json.py` script with your USB stick's mount point.
+6. Update the `USB_MOUNT_POINT` variable in the `temp_sensor.py` script with your USB stick's mount point.
 
 ## Usage
 
@@ -57,6 +57,24 @@ python3 temp_sensor_json.py
 The script will create JSON files with temperature readings on the USB stick.
 
 ## Running on Boot
+### Service file
+```
+[Unit]
+Description=Temperature Sensor Logger
+After=multi-user.target
+
+[Service]
+ExecStart=/usr/bin/python3 /home/pi/temp_sensor.py
+WorkingDirectory=/home/pi
+StandardOutput=inherit
+StandardError=inherit
+Restart=always
+User=pi
+
+[Install]
+WantedBy=multi-user.target
+```
+
 
 To run the script automatically on boot:
 
