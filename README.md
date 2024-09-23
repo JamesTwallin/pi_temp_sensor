@@ -51,7 +51,7 @@ This project uses a Raspberry Pi with a DS18B20 temperature sensor to log temper
 Run the script manually:
 
 ```
-python3 temp_sensor_json.py
+python3 temp_sensor.py
 ```
 
 The script will create JSON files with temperature readings on the USB stick.
