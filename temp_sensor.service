@@ -7,7 +7,10 @@ ExecStart=/usr/bin/python3 /home/pi/pi_temp_sensor/temp_sensor.py
 WorkingDirectory=/home/pi
 StandardOutput=inherit
 StandardError=inherit
-Restart=always
+Restart=on-failure
+RestartSec=30
+StartLimitInterval=15min
+StartLimitBurst=5
 User=pi
 
 [Install]
