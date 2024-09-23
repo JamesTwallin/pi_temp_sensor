@@ -1,6 +1,8 @@
 import os
 import glob
 import time
+import csv
+from datetime import datetime, timezone
 
 # Initialize the 1-Wire interface
 os.system('modprobe w1-gpio')
@@ -34,6 +36,9 @@ def read_temp(device_file):
         return temp_c, temp_f
     return None, None
 
+def get_zulu_timestamp():
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
 def main():
     device_file = find_device()
     if not device_file:
@@ -41,16 +46,34 @@ def main():
         return
 
     print("DS18B20 sensor found. Starting temperature readings...")
-    try:
-        while True:
-            celsius, fahrenheit = read_temp(device_file)
-            if celsius is not None and fahrenheit is not None:
-                print(f"Temperature: {celsius:.1f}°C | {fahrenheit:.1f}°F")
-            else:
-                print("Error reading temperature. Retrying...")
-            time.sleep(1)
-    except KeyboardInterrupt:
-        print("Script terminated by user.")
+
+    # Create a directory for CSV files if it doesn't exist
+    csv_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'temperature_logs')
+    os.makedirs(csv_dir, exist_ok=True)
+
+    # Create a new CSV file with current timestamp
+    csv_filename = os.path.join(csv_dir, f'temperature_log_{get_zulu_timestamp()}.csv')
+    
+    with open(csv_filename, 'w', newline='') as csvfile:
+        csv_writer = csv.writer(csvfile)
+        csv_writer.writerow(['Timestamp', 'Temperature (°C)', 'Temperature (°F)'])
+
+        try:
+            while True:
+                celsius, fahrenheit = read_temp(device_file)
+                timestamp = get_zulu_timestamp()
+                
+                if celsius is not None and fahrenheit is not None:
+                    print(f"{timestamp} - Temperature: {celsius:.1f}°C | {fahrenheit:.1f}°F")
+                    csv_writer.writerow([timestamp, f"{celsius:.1f}", f"{fahrenheit:.1f}"])
+                    csvfile.flush()  # Ensure data is written to the file immediately
+                else:
+                    print(f"{timestamp} - Error reading temperature. Retrying...")
+                
+                time.sleep(1)
+        except KeyboardInterrupt:
+            print("Script terminated by user.")
+            print(f"Data saved to {csv_filename}")
 
 if __name__ == "__main__":
     main()
