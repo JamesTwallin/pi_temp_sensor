@@ -94,7 +94,7 @@ def main():
                 readings_count = 0
                 last_write_time = current_time
             
-            time.sleep(1)
+            time.sleep(30)
     except KeyboardInterrupt:
         print("Script terminated by user.")
         write_buffer_to_csv(csv_path, buffer)  # Write any remaining data
