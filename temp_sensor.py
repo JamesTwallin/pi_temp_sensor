@@ -12,8 +12,8 @@ os.system('modprobe w1-therm')
 # Define the directory where the sensor data is stored
 base_dir = '/sys/bus/w1/devices/'
 
-# USB stick mount point - update this to match your setup
-USB_MOUNT_POINT = '/media/pi/USB_STICK'
+# Desktop path for the pi user
+DESKTOP_PATH = '/home/pi/Desktop'
 
 # Buffer size and write interval
 BUFFER_SIZE = 60  # Number of readings to buffer before writing
@@ -42,34 +42,44 @@ def get_zulu_timestamp():
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 def create_csv(start_time):
-    day_folder = os.path.join(USB_MOUNT_POINT, start_time[:10])  # YYYY-MM-DD
-    os.makedirs(day_folder, exist_ok=True)
-    
-    csv_filename = f"{start_time.replace(':', '')}.csv"
-    csv_path = os.path.join(day_folder, csv_filename)
-    
-    with open(csv_path, 'w', newline='') as csvfile:
-        csv_writer = csv.writer(csvfile)
-        csv_writer.writerow(["Timestamp", "Temperature (°C)"])
-    
-    return csv_path
+    day_folder = os.path.join(DESKTOP_PATH, 'temperature_logs', start_time[:10])  # YYYY-MM-DD
+    try:
+        os.makedirs(day_folder, exist_ok=True)
+        
+        csv_filename = f"{start_time.replace(':', '')}.csv"
+        csv_path = os.path.join(day_folder, csv_filename)
+        
+        with open(csv_path, 'w', newline='') as csvfile:
+            csv_writer = csv.writer(csvfile)
+            csv_writer.writerow(["Timestamp", "Temperature (°C)"])
+        
+        return csv_path
+    except IOError as e:
+        print(f"Error creating CSV file: {e}")
+        return None
 
 def write_buffer_to_csv(csv_path, buffer):
-    with open(csv_path, 'a', newline='') as csvfile:
-        csvfile.write(buffer.getvalue())
-    buffer.truncate(0)
-    buffer.seek(0)
+    try:
+        with open(csv_path, 'a', newline='') as csvfile:
+            csvfile.write(buffer.getvalue())
+        buffer.truncate(0)
+        buffer.seek(0)
+    except IOError as e:
+        print(f"Error writing to CSV file: {e}")
 
 def main():
     device_file = find_device()
     if not device_file:
         print("Error: DS18B20 sensor not found. Please check your connections and ensure the sensor is properly set up.")
         return
-
     print("DS18B20 sensor found. Starting temperature readings...")
     
     start_time = get_zulu_timestamp()
     csv_path = create_csv(start_time)
+    if csv_path is None:
+        print("Failed to create CSV file. Exiting.")
+        return
+
     buffer = StringIO()
     csv_writer = csv.writer(buffer)
     
