@@ -1,18 +1,18 @@
 # Raspberry Pi Temperature Sensor Logger
 
-This project uses a Raspberry Pi with a DS18B20 temperature sensor to log temperature readings. The readings are stored as individual JSON files on an attached USB stick.
+This project uses a Raspberry Pi with a DS18B20 temperature sensor to log temperature readings. The readings are stored as hourly CSV files both locally and on an attached USB stick (if available).
 
 ## Hardware Requirements
 
 - Raspberry Pi (any model with GPIO pins)
 - DS18B20 temperature sensor
-- USB stick for data storage
+- USB stick for redundant data storage (optional)
 
 ## Software Requirements
 
 - Raspberry Pi OS (formerly Raspbian)
 - Python 3
-- Required Python libraries: `os`, `glob`, `time`, `json`, `datetime`
+- Required Python libraries: `os`, `glob`, `csv`, `datetime`
 
 ## Setup
 
@@ -42,41 +42,45 @@ This project uses a Raspberry Pi with a DS18B20 temperature sensor to log temper
    pip3 install -r requirements.txt
    ```
 
-5. Plug in your USB stick and note its mount point (e.g., `/media/pi/USB_STICK`)
-
-6. Update the `USB_MOUNT_POINT` variable in the `temp_sensor.py` script with your USB stick's mount point.
+5. (Optional) Plug in your USB stick. The script will automatically detect and use it if available.
 
 ## Usage
 
-Run the script manually:
+The script is designed to run every minute via a cron job. To set this up:
 
-```
-python3 temp_sensor.py
-```
-
-The script will create JSON files with temperature readings on the USB stick.
-
-## Running on Boot
-
-To run the script automatically on boot:
-
-1. Copy the systemd service file to the appropriate directory:
+1. Open the crontab file:
    ```
-   sudo cp temp_sensor.service /etc/systemd/system/
+   crontab -e
    ```
 
-2. Enable and start the service:
+2. Add the following line:
    ```
-   sudo systemctl enable temp_sensor.service
-   sudo systemctl start temp_sensor.service
+   * * * * * /usr/bin/python3 /home/pi/pi_temp_sensor/temp_sensor.py >> /home/pi/temp_sensor.log 2>&1
    ```
+
+3. Save and exit (in nano, press Ctrl+X, then Y, then Enter).
+
+The script will create hourly CSV files with temperature readings both locally and on the USB stick (if available).
+
+## Output
+
+- CSV files are created in the format: `YYYY-MM-DDTHH.csv`
+- Each file contains readings for one hour
+- Files are stored in `/home/pi/Desktop/temperature_logs/` and on the USB drive (if available)
 
 ## Troubleshooting
 
 - If the sensor is not detected, check your wiring and ensure the 1-Wire interface is enabled.
-- If data is not being written to the USB stick, check that it's properly mounted and the mount point in the script is correct.
-- View service logs with: `sudo journalctl -u temp_sensor.service`
+- If data is not being written to the USB stick, check that it's properly mounted.
+- Check `/home/pi/temp_sensor.log` for any error messages.
+- Ensure the DS18B20 sensor is properly connected to the GPIO pins.
+- Verify that the 1-Wire interface is enabled in raspi-config.
+
+## Maintenance
+
+- Regularly check available storage space, especially if using a USB drive with limited capacity.
+- Consider implementing a log rotation system for long-term use to manage file sizes.
 
 ## License
 
-This project is licensed under the MIT License
+This project is licensed under the MIT License.
