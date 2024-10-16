@@ -1,11 +1,11 @@
 import os
 import glob
 import json
+import subprocess
 from datetime import datetime, timezone
 
 base_dir = '/sys/bus/w1/devices/'
 local_output_dir = '/home/pi/Desktop/temperature_logs'
-usb_output_dir = '/media/pi/USB_STICK'
 
 def read_temp():
     device_folder = glob.glob(base_dir + '28*')[0]
@@ -18,6 +18,22 @@ def read_temp():
     if equals_pos != -1:
         temp_string = lines[1][equals_pos+2:]
         return float(temp_string) / 1000.0
+
+def find_usb_drive():
+    try:
+        # Run the lsblk command to list block devices
+        result = subprocess.run(['lsblk', '-Jplno', 'NAME,TYPE,MOUNTPOINT'], capture_output=True, text=True)
+        devices = json.loads(result.stdout)
+
+        # Find the first mounted removable drive
+        for device in devices['blockdevices']:
+            if device['type'] == 'disk':
+                for partition in device.get('children', []):
+                    if partition['mountpoint']:
+                        return partition['mountpoint']
+    except Exception as e:
+        print(f"Error finding USB drive: {str(e)}")
+    return None
 
 def write_json(data, directory):
     os.makedirs(directory, exist_ok=True)
@@ -39,14 +55,16 @@ def main():
     # Always write to local storage
     write_json(data, local_output_dir)
 
-    # Try to write to USB stick
-    try:
-        if os.path.exists('/media/pi/USB_STICK'):
+    # Try to write to USB drive
+    usb_mount = find_usb_drive()
+    if usb_mount:
+        try:
+            usb_output_dir = os.path.join(usb_mount, 'temperature_logs')
             write_json(data, usb_output_dir)
-        else:
-            print("USB stick not found. Data only saved locally.")
-    except Exception as e:
-        print(f"Error writing to USB stick: {str(e)}")
+        except Exception as e:
+            print(f"Error writing to USB drive: {str(e)}")
+    else:
+        print("No USB drive found. Data only saved locally.")
 
 if __name__ == "__main__":
     main()
