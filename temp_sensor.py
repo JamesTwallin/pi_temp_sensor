@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 base_dir = '/sys/bus/w1/devices/'
 local_output_dir = '/home/pi/Desktop/temperature_logs'
-usb_output_dir = '/media/pi/USB_STICK/temperature_logs'
+usb_output_dir = '/media/pi/USB_STICK'
 
 def read_temp():
     device_folder = glob.glob(base_dir + '28*')[0]
