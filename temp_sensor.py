@@ -76,7 +76,7 @@ def main():
     
     data = {
         "timestamp": timestamp,
-        "temperature": round(temp, 1) if temp is not None else None
+        "temperature": round(temp, 2) if temp is not None else None
     }
     logging.info(f"Data prepared: {data}")
 
