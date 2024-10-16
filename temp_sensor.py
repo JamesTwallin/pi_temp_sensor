@@ -1,7 +1,6 @@
 import os
 import glob
 import json
-import subprocess
 from datetime import datetime, timezone
 
 base_dir = '/sys/bus/w1/devices/'
@@ -20,19 +19,18 @@ def read_temp():
         return float(temp_string) / 1000.0
 
 def find_usb_drive():
-    try:
-        # Run the lsblk command to list block devices
-        result = subprocess.run(['lsblk', '-Jplno', 'NAME,TYPE,MOUNTPOINT'], capture_output=True, text=True)
-        devices = json.loads(result.stdout)
-
-        # Find the first mounted removable drive
-        for device in devices['blockdevices']:
-            if device['type'] == 'disk':
-                for partition in device.get('children', []):
-                    if partition['mountpoint']:
-                        return partition['mountpoint']
-    except Exception as e:
-        print(f"Error finding USB drive: {str(e)}")
+    common_mount_points = [
+        '/media/pi',
+        '/media/PI',
+        '/mnt',
+        '/media'
+    ]
+    for mount_point in common_mount_points:
+        if os.path.exists(mount_point):
+            subdirs = [os.path.join(mount_point, d) for d in os.listdir(mount_point)]
+            usb_drives = [d for d in subdirs if os.path.ismount(d)]
+            if usb_drives:
+                return usb_drives[0]
     return None
 
 def write_json(data, directory):
