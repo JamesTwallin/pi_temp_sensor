@@ -1,21 +1,19 @@
 [Unit]
 Description=Temperature Sensor Logger
 After=multi-user.target
-Wants=systemd-networkd-wait-online.service
-After=systemd-networkd-wait-online.service
 
 [Service]
 Type=simple
-ExecStartPre=/bin/bash -c 'while ! mountpoint -q /media/pi/USB_STICK; do sleep 1; done'
 ExecStart=/usr/bin/python3 /home/pi/pi_temp_sensor/temp_sensor.py
 WorkingDirectory=/home/pi
-StandardOutput=inherit
-StandardError=inherit
+StandardOutput=journal
+StandardError=journal
 Restart=on-failure
 RestartSec=30
-StartLimitInterval=15min
-StartLimitBurst=5
 User=pi
+
+# Check if USB stick is mounted before starting
+ExecStartPre=/bin/bash -c 'for i in {1..30}; do if mountpoint -q /media/pi/USB_STICK; then exit 0; fi; sleep 1; done; exit 1'
 
 [Install]
 WantedBy=multi-user.target
