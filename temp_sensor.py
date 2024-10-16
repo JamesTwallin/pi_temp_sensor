@@ -1,6 +1,6 @@
 import os
 import glob
-import json
+import csv
 from datetime import datetime, timezone
 
 base_dir = '/sys/bus/w1/devices/'
@@ -33,13 +33,24 @@ def find_usb_drive():
                 return usb_drives[0]
     return None
 
-def write_json(data, directory):
+def write_csv(data, directory):
     os.makedirs(directory, exist_ok=True)
-    filename = f"{data['timestamp'].replace(':', '-')}.json"
+    current_hour = data['timestamp'][:13]  # YYYY-MM-DDTHH
+    filename = f"{current_hour}.csv"
     filepath = os.path.join(directory, filename)
-    with open(filepath, 'w') as f:
-        json.dump(data, f)
-    print(f"Temperature reading saved to {filepath}")
+    
+    file_exists = os.path.isfile(filepath)
+    
+    with open(filepath, 'a', newline='') as csvfile:
+        fieldnames = ['timestamp', 'temperature']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        
+        if not file_exists:
+            writer.writeheader()
+        
+        writer.writerow(data)
+    
+    print(f"Temperature reading appended to {filepath}")
 
 def main():
     temp = read_temp()
@@ -51,14 +62,14 @@ def main():
     }
 
     # Always write to local storage
-    write_json(data, local_output_dir)
+    write_csv(data, local_output_dir)
 
     # Try to write to USB drive
     usb_mount = find_usb_drive()
     if usb_mount:
         try:
             usb_output_dir = os.path.join(usb_mount, 'temperature_logs')
-            write_json(data, usb_output_dir)
+            write_csv(data, usb_output_dir)
         except Exception as e:
             print(f"Error writing to USB drive: {str(e)}")
     else:
